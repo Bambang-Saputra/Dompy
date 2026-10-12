@@ -118,13 +118,9 @@ Dompy : (ringkasan, perbandingan dengan bulan lalu, saran konkret, usulan budget
 
 ## Screenshot
 
-| Chat + dashboard | Evaluasi bulanan |
+| Mencatat pengeluaran + dashboard | Perkenalan Dompy |
 |---|---|
-| ![](screenshots/01-chat-dashboard.png) | ![](screenshots/02-evaluasi.png) |
-
-| Grafik per kategori & harian | Mode formal + tegas |
-|---|---|
-| ![](screenshots/03-grafik.png) | ![](screenshots/04-formal-tegas.png) |
+| ![](screenshots/01-chat-dashboard.png) | ![](screenshots/02-sapaan.png) |
 
 ## Struktur repo
 
