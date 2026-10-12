@@ -84,9 +84,13 @@ def buat_sesi_chat(client, model=config.MODEL_NAME, history=None):
     return client.chats.create(model=model, config=buat_config(), history=history)
 
 
-def tools_terpakai(response):
-    """Daftar function call pada giliran terakhir, untuk ditampilkan di UI."""
-    riwayat = response.automatic_function_calling_history or []
+def tools_terpakai(sesi):
+    """Daftar function call pada giliran terakhir, untuk ditampilkan di UI.
+
+    Dibaca dari riwayat chat karena di google-genai 2.x sesi chat menjalankan function calling sendiri
+    dan `response.automatic_function_calling_history` dibiarkan kosong.
+    """
+    riwayat = sesi.get_history()
     awal = 0
     for i, content in enumerate(riwayat):  # cari pesan user (teks) terakhir
         if content.role == "user" and any(p.text for p in content.parts or []):
@@ -120,10 +124,18 @@ def tanya_dompy(client, sesi, pesan, gaya=config.GAYA_BAHASA, mode=config.MODE_S
     ke model cadangan, jadi simpan lagi nilai kembaliannya.
     """
     model_dicoba = [sesi._model] + [m for m in config.MODEL_CADANGAN if m != sesi._model]
+    # Riwayat sebelum pesan ini. Sesi chat mencatat tiap langkah function calling, jadi kalau gagal di tengah,
+    # langkah yang setengah jadi tidak ikut dibawa ke model cadangan.
+    riwayat_awal = sesi.get_history(curated=True)
+
+    def sesi_bersih(s):
+        """Sesi di model yang sama tanpa langkah setengah jadi dari percobaan yang gagal."""
+        return buat_sesi_chat(client, s._model, history=list(riwayat_awal))
+
     error_terakhir = None
     for model in model_dicoba:
         if model != sesi._model:
-            sesi = buat_sesi_chat(client, model, history=sesi.get_history(curated=True))
+            sesi = buat_sesi_chat(client, model, history=list(riwayat_awal))
         sebelum = jejak_data()
         for thinking in (True, False):
             try:
@@ -131,18 +143,20 @@ def tanya_dompy(client, sesi, pesan, gaya=config.GAYA_BAHASA, mode=config.MODE_S
                 jawaban = (response.text or "").strip() or "Maaf, aku belum bisa menjawab itu. Coba ulangi dengan kalimat lain ya."
                 simpan_chat("user", pesan)
                 simpan_chat("assistant", jawaban)
-                return jawaban, tools_terpakai(response), sesi, model
+                return jawaban, tools_terpakai(sesi), sesi, model
             except errors.APIError as e:
                 error_terakhir = e
                 if e.code == 400 and "thinking" in str(e).lower() and thinking:
-                    continue  # model ini tidak mendukung thinking_level, ulangi tanpa itu
+                    # model ini tidak mendukung thinking_level, ulangi tanpa itu
+                    sesi = sesi_bersih(sesi)
+                    continue
                 break
             except Exception as e:  # koneksi putus, dsb.
-                return f"⚠️ Gagal menghubungi Gemini: {e}", [], sesi, None
+                return f"⚠️ Gagal menghubungi Gemini: {e}", [], sesi_bersih(sesi), None
         if jejak_data() != sebelum:
             # Sebagian tool sudah sempat jalan. Jangan kirim ulang supaya transaksi tidak tercatat dobel.
             return ("⚠️ Gemini terputus di tengah jalan, tapi sebagian data sudah sempat tersimpan. "
-                    "Cek tab Transaksi dulu sebelum mengirim ulang ya."), [], sesi, None
+                    "Cek tab Transaksi dulu sebelum mengirim ulang ya."), [], sesi_bersih(sesi), None
         if getattr(error_terakhir, "code", None) not in KODE_SIBUK + (404,):
             break  # error bukan karena model sibuk/tidak ada, ganti model tidak akan membantu
-    return f"⚠️ {pesan_error(error_terakhir)}", [], sesi, None
+    return f"⚠️ {pesan_error(error_terakhir)}", [], sesi_bersih(sesi), None

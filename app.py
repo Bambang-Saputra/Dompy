@@ -141,12 +141,12 @@ k3.html(kartu_kpi("Bulan ini", total_pengeluaran(today.replace(day=1), today),
 def tampilkan_pesan(m):
     with st.chat_message(m["role"], avatar=":material/person:" if m["role"] == "user" else "💸"):
         st.markdown(m["content"])
-        if m.get("tools") or m.get("model_cadangan"):
-            with st.expander(f"Detail: {len(m.get('tools', []))} tool dipanggil", icon=":material/build:"):
-                if m.get("model_cadangan"):
-                    st.caption(f"Model utama sibuk, dijawab oleh `{m['model_cadangan']}`.")
-                for c in m.get("tools", []):
+        if m.get("tools"):
+            with st.expander(f"{len(m['tools'])} tool dipanggil", icon=":material/build:"):
+                for c in m["tools"]:
                     st.code(c, language="python", wrap_lines=True)
+        if m.get("model_cadangan"):
+            st.caption(f"Model utama sibuk, pindah ke `{m['model_cadangan']}`.")
 
 
 # ---------- Chat + dashboard ----------
@@ -169,12 +169,14 @@ with kiri:
             if prompt:
                 pesan_user = {"role": "user", "content": prompt, "tools": []}
                 tampilkan_pesan(pesan_user)
+                model_lama = st.session_state.sesi._model
                 with st.chat_message("assistant", avatar="💸"):
                     with st.spinner("Dompy lagi nyatet..."):
                         jawaban, calls, st.session_state.sesi, model = agent.tanya_dompy(
                             client, st.session_state.sesi, prompt, gaya, mode)
+                # keterangan model cadangan cukup muncul sekali, saat pindahnya terjadi
                 pesan_dompy = {"role": "assistant", "content": jawaban, "tools": calls,
-                               "model_cadangan": model if model and model != config.MODEL_NAME else None}
+                               "model_cadangan": model if model and model != model_lama else None}
                 st.session_state.messages += [pesan_user, pesan_dompy]
                 st.rerun()  # gambar ulang supaya chat dan dashboard memakai data terbaru
 
