@@ -1,0 +1,17 @@
+# Rahasia
+.env
+
+# Data pribadi (database pengeluaran & riwayat chat)
+data/
+*.db
+
+# Python / Jupyter
+__pycache__/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# File sementara saat menjalankan app dari notebook
+streamlit.log
+tunnel.log
+cloudflared

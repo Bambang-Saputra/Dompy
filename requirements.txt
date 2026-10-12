@@ -1,0 +1,5 @@
+google-genai>=2.0
+streamlit>=1.50
+pandas
+plotly
+tzdata
